@@ -1,6 +1,217 @@
+2026-08-02  Dirk Eddelbuettel  <edd@debian.org>
+
+	* DESCRIPTION (Version, Date): Roll micro version and date
+
+	* tools/configureWin.R: If windows-arm64, use Makevars.no_blp
+	* configure.win: Added, calls tools/configureWin.R
+	* src/Makevars.win.in: Renamed from Makevars.win
+
+2026-01-10  Dirk Eddelbuettel  <edd@debian.org>
+
+	* DESCRIPTION (Additional_repositories): Remove temporary addition
+
+2026-01-08  Dirk Eddelbuettel  <edd@debian.org>
+
+	* DESCRIPTION (Additional_repositories): TEMPORARILY adding RcppCore
+	R-universe as additional repository as the 1.1.0.8.2 for R-devel at
+	CRAN get mistakenly pulled. This can be reversed once new Rcpp is out.
+
+	* configure: Refine architecture detection
+
+2026-01-06  Dirk Eddelbuettel  <edd@debian.org>
+
+	* .github/workflows/ci.yaml: Switch to actions/checkout@v6; remove
+	now retired macos-13
+
+2025-10-29  Dirk Eddelbuettel  <edd@debian.org>
+
+	* configure: Account for linux-musl which is of course unsupported
+	as there is no API build to work with
+
+2025-03-31  Dirk Eddelbuettel  <edd@debian.org>
+
+	* DESCRIPTION (Version, Date): New release 0.3.16
+
+2025-03-14  Dirk Eddelbuettel  <edd@debian.org>
+
+	* src/authenticate.cpp: Redefine in terms of -DHaveBlp flag and bring
+	if/else inside the function itself
+        * src/bdh.cpp: Idem
+        * src/bdp.cpp: Idem
+        * src/bds.cpp: Idem
+        * src/beqs.cpp: Idem
+        * src/blpConnect.cpp: Idem
+        * src/blpVersion.cpp: Idem
+        * src/blpapi_utils.cpp: Idem
+        * src/bsrch.cpp: Idem
+        * src/fieldsearch.cpp: Idem
+        * src/getBars.cpp: Idem
+        * src/getFieldInfo.cpp: Idem
+        * src/getTicks.cpp: Idem
+        * src/lookup.cpp: Idem
+        * src/subscribe.cpp: Idem
+
+	* src/blpVersion.cpp: Define simple haveBlp() helper
+	* man/haveBlp.Rd: Documentation for haveBlp()
+	* R/init.R: Use more explicit haveBlp()
+
+2025-03-13  Dirk Eddelbuettel  <edd@debian.org>
+
+	* DESCRIPTION (Version, Date): Roll micro version and date
+
+	* configure: Streamline and simplify conditional compilation
+	* src/Makevars.in: Idem
+
+	* .github/workflows/ci.yaml: Add macos-13 build for no-blp x86_64
+
+2025-03-12  John Laing  <john.laing@gmail.com>
+
+	* src/authenticate.cpp: Correct duplicate export declaration
+        * src/bdh.cpp: Idem
+        * src/bdp.cpp: Idem
+        * src/bds.cpp: Idem
+        * src/beqs.cpp: Idem
+        * src/blpConnect.cpp: Idem
+        * src/blpVersion.cpp: Idem
+        * src/blpapi_utils.cpp: Idem
+        * src/bsrch.cpp: Idem
+        * src/fieldsearch.cpp: Idem
+        * src/getBars.cpp: Idem
+        * src/getFieldInfo.cpp: Idem
+        * src/getTicks.cpp: Idem
+        * src/lookup.cpp: Idem
+        * src/subscribe.cpp: Idem
+
+2025-03-09  Dirk Eddelbuettel  <edd@debian.org>
+
+	* DESCRIPTION (Version, Date): Roll micro version and date
+
+	* configure: Rework to actively support amd64 on Linux and arm64 on
+	macOS only and define -DNoBlpHere otherwise
+	* src/Makevars.in: Adjusted accordingly for link and install_name_tool
+	* src/authenticate.cpp: Compilation reflects #if defined(NoBlpHere)
+        * src/bdh.cpp: Idem
+        * src/bdp.cpp: Idem
+        * src/bds.cpp: Idem
+        * src/beqs.cpp: Idem
+        * src/blpConnect.cpp: Idem
+        * src/blpVersion.cpp: Idem
+        * src/blpapi_utils.cpp: Idem
+        * src/bsrch.cpp: Idem
+        * src/fieldsearch.cpp: Idem
+        * src/getBars.cpp: Idem
+        * src/getFieldInfo.cpp: Idem
+        * src/getTicks.cpp: Idem
+        * src/lookup.cpp: Idem
+        * src/subscribe.cpp: Idem
+	* R/init.R: Startup message adjusted for build with/without blp
+
+2025-03-08  Dirk Eddelbuettel  <edd@debian.org>
+
+	* .github/workflows/ci.yaml: Use r-ci action with embedded bootstrap
+
+2025-01-15  Kai Lin   <kai.lin@coolabahcapital.com>
+
+	* src/blpConnect.cpp: Add 'appIdentityKey' argument to 'blpConnect'
+	* R/blpConnect.R: Adjust and document R interface
+	* man/blpConnect.Rd: Regenerated
+	* src/RcppExports.cpp: Idem
+	* R/RcppExports.R: Idem
+
+2024-12-05  Dirk Eddelbuettel  <edd@debian.org>
+
+	* src/bdh.cpp: Use Rcpp::stop instead of throw
+	* src/bdp.cpp: Idem
+	* src/bds.cpp: Idem
+	* src/beqs.cpp: Idem
+	* src/blpapi_utils.cpp: Idem
+	* src/bsrch.cpp: Idem
+	* src/lookup.cpp: Idem
+	* src/subscribe.cpp: Idem
+
+2024-12-04  Dirk Eddelbuettel  <edd@debian.org>
+
+	* DESCRIPTION (Version, Date): Roll micro version and date
+
+2024-11-25  Rodolphe Duge  <rodolphe.duge-de-bernonville@metori.com>
+
+	* src/bdp.c: Quota error handling on bdp request
+
+2024-09-18  Dirk Eddelbuettel  <edd@debian.org>
+
+	* DESCRIPTION (Version, Date): New release 0.3.15
+
+2024-09-11  Dirk Eddelbuettel  <edd@debian.org>
+
+	* configure: Support arm64 on macOS, switch to newer libraries
+	* src/Makefile.in: Idem
+	* src/Makefile.win: Idem
+	* .github/workflows/ci.yaml: Re-enable macOS CI via arm64
+	* DESCRIPTION: Updated reference to Bloomberg API SDK version
+
+2024-09-05  John Laing  <john.laing@gmail.com>
+
+	* src/bsrch.cpp: Correct over-use of Name{}
+	* R/bsrch.R: Add example of bsrch()
+	* man/bsrch.R: Idem
+
+2024-09-01  Dirk Eddelbuettel  <edd@debian.org>
+
+	* src/bds.cpp: Correct over-use of Name{}
+
+2024-08-27  Dirk Eddelbuettel  <edd@debian.org>
+
+	* DESCRIPTION (Version, Date): Roll micro version and date
+
+	* DESCRIPTION (Authors@R): Added
+
+	* README.md: Switch CI badge to GitHub Actions
+
+2024-08-25  Dirk Eddelbuettel  <edd@debian.org>
+
+	* src/authenticate.cpp: Use Name{} instantiation instead of char*
+	* src/bdh.cpp: Idem
+	* src/bdp.cpp: Idem
+	* src/bds.cpp: Idem
+	* src/beqs.cpp: Idem
+	* src/blpapi_utils.cpp: Idem
+	* src/fieldsearch.cpp: Idem
+	* src/getBars.cpp: Idem
+	* src/getTicks.cpp: Idem
+	* src/lookup.cpp: Idem
+
+	* src/Makevars.in: Remove obsolete C++11 setter
+	* src/Makevars.in: Set to development branch of blp repo for testing
+	* src/Makevars.win: Idem
+
+	* .editorconfig: Added
+
+2024-07-15  Dirk Eddelbuettel  <edd@debian.org>
+
+	* README.md: Switch some URLs from http to https
+
+2024-05-23  Dirk Eddelbuettel  <edd@debian.org>
+
+	* README.md: Use tinyverse.netlify.app for dependency badge
+
+	* .github/workflows/ci.yaml (jobs): Turn off macOS which is arm64 now
+
+2024-02-23  Dirk Eddelbuettel  <edd@debian.org>
+
+	* .github/workflows/ci.yaml (jobs): Update to actions/checkout@v4,
+	add r-ci-setup actions
+
+2022-12-01  Dirk Eddelbuettel  <edd@debian.org>
+
+	* .github/workflows/ci.yaml (jobs): Update to actions/checkout@v3
+
 2022-10-25  Dr Michael Streatfield  <michael.streatfield@gmail.com>
 
-    * Fix minor typos in vignettes\rblpapi-intro.md
+	* vignettes/rblpapi-intro.md: Fix minor typos
+
+2022-10-22  John Laing  <john.laing@gmail.com>
+
+	* R/lookup.R: A warning is issued when over 1000 results returned
 
 2022-10-05  Dirk Eddelbuettel  <edd@debian.org>
 

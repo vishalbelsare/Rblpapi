@@ -1,10 +1,9 @@
-// -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 //
 //  authenticate.cpp -- Function to authenticate to Bloomberg backend
 //
-//  Copyright (C) 2013  Whit Armstrong
-//  Copyright (C) 2015  Whit Armstrong and Dirk Eddelbuettelp
-//  Copyright (C) 2019  Whit Armstrong, Dirk Eddelbuettel and Alfred Kanzler
+//  Copyright (C) 2013      Whit Armstrong
+//  Copyright (C) 2015-2025 Whit Armstrong and Dirk Eddelbuettelp
+//  Copyright (C) 2019-2025 Whit Armstrong, Dirk Eddelbuettel and Alfred Kanzler
 //
 //  This file is part of Rblpapi
 //
@@ -21,7 +20,7 @@
 //  You should have received a copy of the GNU General Public License
 //  along with Rblpapi.  If not, see <http://www.gnu.org/licenses/>.
 
-
+#if defined(HaveBlp)
 #include <string>
 #include <blpapi_defs.h>
 #include <blpapi_element.h>
@@ -32,7 +31,6 @@
 #include <blpapi_session.h>
 #include <blpapi_event.h>
 #include <blpapi_message.h>
-#include <Rcpp.h>
 #include <finalizers.h>
 #include <blpapi_utils.h>
 
@@ -45,6 +43,7 @@ using BloombergLP::blpapi::Message;
 using BloombergLP::blpapi::MessageIterator;
 using BloombergLP::blpapi::CorrelationId;
 using BloombergLP::blpapi::EventQueue;
+using BloombergLP::blpapi::Name;
 
 static void identityFinalizer(SEXP identity_) {
     Identity* identity = reinterpret_cast<Identity*>(R_ExternalPtrAddr(identity_));
@@ -78,13 +77,13 @@ Identity* authenticateWithId(SEXP con_, SEXP uuid_, SEXP ip_address_, SEXP is_au
     // if isAuthId is true, we are actually assuming a BPIPE scenario
     // where we still want to auth by user id & ip address
     if (isAuthId) {
-        authorizationRequest.set("authId", uuid.c_str());
+        authorizationRequest.set(Name{"authId"}, uuid.c_str());
         std::string appName = Rcpp::as<std::string>(app_name_);
-        authorizationRequest.set("appName", appName.c_str());
+        authorizationRequest.set(Name{"appName"}, appName.c_str());
     } else {
-        authorizationRequest.set("uuid", uuid.c_str());
+        authorizationRequest.set(Name{"uuid"}, uuid.c_str());
     }
-    authorizationRequest.set("ipAddress", ip_address.c_str());
+    authorizationRequest.set(Name{"ipAddress"}, ip_address.c_str());
     Identity* identity_p = new Identity(session->createIdentity());
     session->sendAuthorizationRequest(authorizationRequest, identity_p);
 
@@ -138,7 +137,7 @@ Identity* authenticateWithApp(SEXP con_) {
             while(msgIter.next()) {
                 Message msg = msgIter.message();
                 if (msg.messageType() == "TokenGenerationSuccess") {
-                    token = msg.getElementAsString("token");
+                    token = msg.getElementAsString(Name{"token"});
                 } else if(msg.messageType() == "TokenGenerationFailure") {
                     Rcpp::stop("Failed to generate token");
                 }
@@ -150,7 +149,7 @@ Identity* authenticateWithApp(SEXP con_) {
         //
         if(!token.empty()) {
             Request authRequest = authService.createAuthorizationRequest();
-            authRequest.set("token", token.c_str());
+            authRequest.set(Name{"token"}, token.c_str());
             identity_p = new Identity(session->createIdentity());
             session->sendAuthorizationRequest(authRequest, identity_p);
             // parse messages
@@ -179,18 +178,26 @@ Identity* authenticateWithApp(SEXP con_) {
     }
     return identity_p;
 }
+#else
+#include <Rcpp/Lightest>
+#endif
 
 // Simpler interface
 //
 // [[Rcpp::export]]
-SEXP authenticate_Impl(SEXP con_, SEXP uuid_, SEXP ip_address_, SEXP is_auth_id_,
-                       SEXP app_name_) {
+SEXP authenticate_Impl(SEXP con_, SEXP uuid_, SEXP ip_address_, SEXP is_auth_id_, SEXP app_name_) {
+#if defined(HaveBlp)
     Identity* identity_p = NULL;
     if (uuid_ == R_NilValue) {
         identity_p = authenticateWithApp(con_);
     } else {
         identity_p = authenticateWithId(con_, uuid_, ip_address_, is_auth_id_, app_name_);
     }
-    if(identity_p == NULL) { Rcpp::stop("Identity pointer is null\n"); }
+    if (identity_p == NULL) {
+        Rcpp::stop("Identity pointer is null\n");
+    }
     return createExternalPointer<Identity>(identity_p, identityFinalizer, "blpapi::Identity*");
+#else // ie no Blp
+    return R_NilValue;
+#endif
 }

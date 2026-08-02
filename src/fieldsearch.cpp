@@ -1,9 +1,8 @@
-// -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 //
 //  fieldsearch.cpp -- a simple field search function for the BLP API
 //
 //  Copyright (C) 2013         Whit Armstrong
-//  Copyright (C) 2014 - 2015  Whit Armstrong and Dirk Eddelbuettel
+//  Copyright (C) 2014 - 2025  Whit Armstrong and Dirk Eddelbuettel
 //
 //  This file is part of Rblpapi
 //
@@ -43,10 +42,9 @@
  * IN THE SOFTWARE.
  */
 
-
+#if defined(HaveBlp)
 #include <blpapi_session.h>
 #include <blpapi_utils.h>
-
 namespace bbg = BloombergLP::blpapi;	// shortcut to not globally import both namespace
 
 namespace {
@@ -58,10 +56,13 @@ namespace {
     const bbg::Name FIELD_ERROR("fieldError");
     const bbg::Name FIELD_MSG("message");
 }
+#else
+#include <Rcpp/Lightest>
+#endif
 
 // [[Rcpp::export]]
 Rcpp::DataFrame fieldSearch_Impl(SEXP con, std::string searchterm) {
-
+#if defined(HaveBlp)
     // via Rcpp Attributes we get a try/catch block with error propagation to R "for free"
     bbg::Session* session =
         reinterpret_cast<bbg::Session*>(checkExternalPointer(con,"blpapi::Session*"));
@@ -73,8 +74,8 @@ Rcpp::DataFrame fieldSearch_Impl(SEXP con, std::string searchterm) {
 
     bbg::Service fieldInfoService = session->getService(APIFLDS_SVC);
     bbg::Request request = fieldInfoService.createRequest("FieldSearchRequest");
-    request.set ("searchSpec", searchterm.c_str());
-    request.set ("returnFieldDocumentation", false);
+    request.set(bbg::Name{"searchSpec"}, searchterm.c_str());
+    request.set(bbg::Name{"returnFieldDocumentation"}, false);
     session->sendRequest(request);
 
     std::vector<std::string> fieldId, fieldMnen, fieldDesc;
@@ -89,7 +90,7 @@ Rcpp::DataFrame fieldSearch_Impl(SEXP con, std::string searchterm) {
         bbg::MessageIterator msgIter(event);
         while (msgIter.next()) {
             bbg::Message msg = msgIter.message();
-            bbg::Element fields = msg.getElement("fieldData");
+            bbg::Element fields = msg.getElement(bbg::Name{"fieldData"});
             int numElements = fields.numValues();
             //Rprintf("Seeing %d elements\n", numElements);
             for (int i=0; i < numElements; i++) {
@@ -118,4 +119,8 @@ Rcpp::DataFrame fieldSearch_Impl(SEXP con, std::string searchterm) {
     return Rcpp::DataFrame::create(Rcpp::Named("Id")          = fieldId,
                                    Rcpp::Named("Mnemonic")    = fieldMnen,
                                    Rcpp::Named("Description") = fieldDesc);
+#else // ie no Blp
+    return Rcpp::DataFrame();
+#endif
+
 }

@@ -1,9 +1,8 @@
-// -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 //
 //  getBars.cpp -- a simple intraday bar retriever
 //
 //  Copyright (C) 2013         Whit Armstrong
-//  Copyright (C) 2014 - 2015  Whit Armstrong and Dirk Eddelbuettel
+//  Copyright (C) 2014 - 2025  Whit Armstrong and Dirk Eddelbuettel
 //
 //  This file is part of Rblpapi
 //
@@ -43,9 +42,9 @@
  * IN THE SOFTWARE.
  */
 
+#if defined(HaveBlp)
 #include <blpapi_session.h>
 #include <blpapi_eventdispatcher.h>
-
 #include <blpapi_event.h>
 #include <blpapi_message.h>
 #include <blpapi_element.h>
@@ -60,7 +59,6 @@
 #include <string>
 #include <stdlib.h>
 #include <string.h>
-
 #include <blpapi_utils.h>
 
 namespace bbg = BloombergLP::blpapi;	// shortcut to not globally import both namespace
@@ -153,6 +151,9 @@ void processResponseEvent(bbg::Event &event, Bars &bars,
         processMessage(msg, bars, barInterval, verbose);
     }
 }
+#else
+#include <Rcpp/Lightest>
+#endif
 
 // [[Rcpp::export]]
 Rcpp::DataFrame getBars_Impl(SEXP con,
@@ -163,7 +164,7 @@ Rcpp::DataFrame getBars_Impl(SEXP con,
                              std::string endDateTime,
                              Rcpp::Nullable<Rcpp::CharacterVector> options,
                              bool verbose=false) {
-
+#if defined(HaveBlp)
     // via Rcpp Attributes we get a try/catch block with error propagation to R "for free"
     bbg::Session* session =
         reinterpret_cast<bbg::Session*>(checkExternalPointer(con,"blpapi::Session*"));
@@ -176,12 +177,12 @@ Rcpp::DataFrame getBars_Impl(SEXP con,
     bbg::Request request = refDataService.createRequest("IntradayBarRequest");
 
     // only one security/eventType per request
-    request.set("security", security.c_str());
-    request.set("eventType", eventType.c_str());
-    request.set("interval", barInterval);
+    request.set(bbg::Name{"security"}, security.c_str());
+    request.set(bbg::Name{"eventType"}, eventType.c_str());
+    request.set(bbg::Name{"interval"}, barInterval);
 
-    request.set("startDateTime", startDateTime.c_str());
-    request.set("endDateTime", endDateTime.c_str());
+    request.set(bbg::Name{"startDateTime"}, startDateTime.c_str());
+    request.set(bbg::Name{"endDateTime"}, endDateTime.c_str());
     if (options.isNotNull()) {
         appendOptionsToRequest(request, options);
     }
@@ -223,8 +224,8 @@ Rcpp::DataFrame getBars_Impl(SEXP con,
                                    Rcpp::Named("numEvents") = bars.numEvents,
                                    Rcpp::Named("volume")    = bars.volume,
                                    Rcpp::Named("value")     = bars.value);
+#else // ie no Blp
+    return Rcpp::DataFrame();
+#endif
 
 }
-
-
-

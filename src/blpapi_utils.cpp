@@ -1,9 +1,8 @@
-// -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 
 //  blpapi_utils -- helper functions for the BLP API
 //
 //  Copyright (C) 2013         Whit Armstrong
-//  Copyright (C) 2017 -       Whit Armstrong and Dirk Eddelbuettel
+//  Copyright (C) 2017 - 2025  Whit Armstrong and Dirk Eddelbuettel
 //
 //  This file is part of Rblpapi
 //
@@ -19,6 +18,8 @@
 //
 //  You should have received a copy of the GNU General Public License
 //  along with Rblpapi.  If not, see <http://www.gnu.org/licenses/>.
+
+#if defined(HaveBlp)
 
 #include <stdexcept>
 #include <string>
@@ -47,34 +48,35 @@ using BloombergLP::blpapi::Element;
 using BloombergLP::blpapi::Event;
 using BloombergLP::blpapi::Message;
 using BloombergLP::blpapi::MessageIterator;
+using BloombergLP::blpapi::Name;
 
 void* checkExternalPointer(SEXP xp_, const char* valid_tag) {
   if(xp_ == R_NilValue) {
-    throw std::logic_error("External pointer is NULL.");
+    Rcpp::stop("External pointer is NULL.");
   }
   if(TYPEOF(xp_) != EXTPTRSXP) {
-    throw std::logic_error("Not an external pointer.");
+    Rcpp::stop("Not an external pointer.");
   }
 
   if(R_ExternalPtrTag(xp_)==R_NilValue) {
-    throw std::logic_error("External pointer tag is NULL.");
+    Rcpp::stop("External pointer tag is NULL.");
   }
   const char* xp_tag = CHAR(PRINTNAME(R_ExternalPtrTag(xp_)));
   if(!xp_tag) {
-    throw std::logic_error("External pointer tag is blank.");
+    Rcpp::stop("External pointer tag is blank.");
   }
   if(std::strcmp(xp_tag,valid_tag) != 0) {
-    throw std::logic_error("External pointer tag does not match.");
+    Rcpp::stop("External pointer tag does not match.");
   }
   if(R_ExternalPtrAddr(xp_)==NULL) {
-    throw std::logic_error("External pointer address is null.");
+    Rcpp::stop("External pointer address is null.");
   }
   return R_ExternalPtrAddr(xp_);
 }
 
 const int bbgDateToRDate(const Datetime& bbg_date) {
   if(bbg_date.hasParts(DatetimeParts::TIME)) {
-    throw std::logic_error("Attempt to convert a Datetime with time parts set to an R Date.");
+    Rcpp::stop("Attempt to convert a Datetime with time parts set to an R Date.");
   }
   const boost::gregorian::date r_epoch(1970,1,1);
   boost::gregorian::date bbg_boost_date(bbg_date.year(),bbg_date.month(),bbg_date.day());
@@ -84,10 +86,10 @@ const int bbgDateToRDate(const Datetime& bbg_date) {
 
 const int bbgDateToRDate(const double yyyymmdd_date) {
   if(yyyymmdd_date < 0) {
-    throw std::logic_error("Attempt to convert a negative double value to an R Date.");
+    Rcpp::stop("Attempt to convert a negative double value to an R Date.");
   }
   if(trunc(yyyymmdd_date)!=yyyymmdd_date) {
-    throw std::logic_error("Attempt to convert a double value with time parts set to an R Date.");
+    Rcpp::stop("Attempt to convert a double value with time parts set to an R Date.");
   }
 
   const boost::gregorian::date r_epoch(1970,1,1);
@@ -118,8 +120,8 @@ const double bbgDatetimeToPOSIX(const Datetime& dt) {
   return static_cast<double>(mktime(&tm_time));
 }
 
-// In case data already comes in localtime (cf TZDF<GO>) 
-// we need to adjust back to UTC 
+// In case data already comes in localtime (cf TZDF<GO>)
+// we need to adjust back to UTC
 const double bbgDatetimeToUTC(const BloombergLP::blpapi::Datetime& dt) {
   boost::gregorian::date bbg_boost_date(dt.year(),dt.month(),dt.day());
   boost::posix_time::time_duration td =
@@ -149,21 +151,21 @@ void appendOptionsToRequest(Request& request, SEXP options_) {
   Rcpp::CharacterVector options(options_);
 
   if(!options.hasAttribute("names")) {
-    throw std::logic_error("Request options must be named.");
+    Rcpp::stop("Request options must be named.");
   }
 
   if(options.attr("names") == R_NilValue) {
-    throw std::logic_error("Request optionnames must not be null.");
+    Rcpp::stop("Request optionnames must not be null.");
   }
 
   Rcpp::CharacterVector options_names(options.attr("names"));
 
   if(options.length() && options_names.length()==0) {
-    throw std::logic_error("Request options must be non empty and named.");
+    Rcpp::stop("Request options must be non empty and named.");
   }
 
   for(R_len_t i = 0; i < options.length(); i++) {
-    request.set(static_cast<std::string>(options_names[i]).c_str(), static_cast<std::string>(options[i]).c_str());
+    request.set(Name{ static_cast<std::string>(options_names[i]).c_str() }, static_cast<std::string>(options[i]).c_str());
   }
 }
 
@@ -172,20 +174,20 @@ void appendOverridesToRequest(Request& request, SEXP overrides_) {
   Rcpp::CharacterVector overrides(overrides_);
 
   if(!overrides.hasAttribute("names") || overrides.attr("names") == R_NilValue) {
-    throw std::logic_error("Request overrides must be named.");
+    Rcpp::stop("Request overrides must be named.");
   }
 
   Rcpp::CharacterVector overrides_names(overrides.attr("names"));
 
   if(overrides.length() && overrides_names.length()==0) {
-    throw std::logic_error("Request overrides must be non empty and named.");
+    Rcpp::stop("Request overrides must be non empty and named.");
   }
 
-  Element request_overrides = request.getElement("overrides");
+  Element request_overrides = request.getElement(Name{"overrides"});
   for(R_len_t i = 0; i < overrides.length(); i++) {
     Element this_override = request_overrides.appendElement();
-    this_override.setElement("fieldId", static_cast<std::string>(overrides_names[i]).c_str());
-    this_override.setElement("value", static_cast<std::string>(overrides[i]).c_str());
+    this_override.setElement(Name{"fieldId"}, static_cast<std::string>(overrides_names[i]).c_str());
+    this_override.setElement(Name{"value"}, static_cast<std::string>(overrides[i]).c_str());
   }
 }
 
@@ -196,11 +198,11 @@ void createStandardRequest(Request& request,
                            SEXP overrides_) {
 
   for(size_t i = 0; i < securities.size(); i++) {
-    request.getElement("securities").appendValue(securities[i].c_str());
+    request.getElement(Name{"securities"}).appendValue(securities[i].c_str());
   }
 
   for(size_t i = 0; i < fields.size(); i++) {
-    request.getElement("fields").appendValue(fields[i].c_str());
+    request.getElement(Name{"fields"}).appendValue(fields[i].c_str());
   }
 
   if(options_ != R_NilValue) { appendOptionsToRequest(request,options_); }
@@ -349,8 +351,8 @@ SEXP allocateDataFrameColumn(RblpapiT rblpapitype, const size_t n) {
 FieldInfo getFieldType(Session *session, Service& fieldInfoService, const std::string& field) {
 
   Request request = fieldInfoService.createRequest("FieldInfoRequest");
-  request.append("id", field.c_str());
-  request.set("returnFieldDocumentation", false);
+  request.append(Name{"id"}, field.c_str());
+  request.set(Name{"returnFieldDocumentation"}, false);
   session->sendRequest(request);
 
   FieldInfo ans;
@@ -365,33 +367,32 @@ FieldInfo getFieldType(Session *session, Service& fieldInfoService, const std::s
     while (msgIter.next()) {
       Message msg = msgIter.message();
       //msg.asElement().print(std::cout);
-      Element fields = msg.getElement("fieldData");
+      Element fields = msg.getElement(Name{"fieldData"});
       if(fields.numValues() > 1) {
-        throw std::logic_error("getFieldType: too many fields returned.");
+        Rcpp::stop("getFieldType: too many fields returned.");
       }
       Element field = fields.getValueAsElement(0);
-      if (!field.hasElement("id")) {
-        throw std::logic_error("Did not find 'id' in repsonse.");
+      if (!field.hasElement(Name{"id"})) {
+        Rcpp::stop("Did not find 'id' in repsonse.");
       }
-      if (field.hasElement("fieldError")) {
+      if (field.hasElement(Name{"fieldError"})) {
         std::ostringstream err;
-        err << "Bad field: " << field.getElementAsString("id") << std::endl;
-        throw std::logic_error(err.str());
+        err << "Bad field: " << field.getElementAsString(Name{"id"}) << std::endl;
+        Rcpp::stop(err.str());
       }
-      if (!field.hasElement("fieldInfo")) {
-        throw std::logic_error("Did not find fieldInfo in repsonse.");
+      if (!field.hasElement(Name{"fieldInfo"})) {
+        Rcpp::stop("Did not find fieldInfo in repsonse.");
       }
-      Element fieldInfo = field.getElement("fieldInfo");
-      if (!fieldInfo.hasElement("mnemonic") ||
-          !fieldInfo.hasElement("datatype") ||
-          !fieldInfo.hasElement("ftype")) {
-        throw std::logic_error(
-                               "fieldInfo missing info mnemonic/datatype/ftype.");
+      Element fieldInfo = field.getElement(Name{"fieldInfo"});
+      if (!fieldInfo.hasElement(Name{"mnemonic"}) ||
+          !fieldInfo.hasElement(Name{"datatype"}) ||
+          !fieldInfo.hasElement(Name{"ftype"})) {
+        Rcpp::stop("fieldInfo missing info mnemonic/datatype/ftype.");
       }
-      ans.id = field.getElementAsString("id");
-      ans.mnemonic = fieldInfo.getElementAsString("mnemonic");
-      ans.datatype = fieldInfo.getElementAsString("datatype");
-      ans.ftype = fieldInfo.getElementAsString("ftype");
+      ans.id = field.getElementAsString(Name{"id"});
+      ans.mnemonic = fieldInfo.getElementAsString(Name{"mnemonic"});
+      ans.datatype = fieldInfo.getElementAsString(Name{"datatype"});
+      ans.ftype = fieldInfo.getElementAsString(Name{"ftype"});
     }
     if (event.eventType() == Event::RESPONSE) {
       break;
@@ -405,7 +406,7 @@ std::vector<FieldInfo> getFieldTypes(Session *session,
                                      const std::vector<std::string> &fields) {
   const std::string APIFLDS_SVC("//blp/apiflds");
   if (!session->openService(APIFLDS_SVC.c_str())) {
-    throw std::logic_error(std::string("Failed to open " + APIFLDS_SVC));
+    Rcpp::stop(std::string("Failed to open " + APIFLDS_SVC));
   }
   Service fieldInfoService = session->getService(APIFLDS_SVC.c_str());
   std::vector<FieldInfo> ans;
@@ -418,7 +419,7 @@ std::vector<FieldInfo> getFieldTypes(Session *session,
 Rcpp::List allocateDataFrame(const vector<string>& rownames, const vector<string>& colnames, vector<RblpapiT>& coltypes) {
 
   if(colnames.size() != coltypes.size()) {
-    throw std::logic_error("colnames size inconsistent with column types size.");
+    Rcpp::stop("colnames size inconsistent with column types size.");
   }
 
   Rcpp::List ans(colnames.size());
@@ -434,7 +435,7 @@ Rcpp::List allocateDataFrame(const vector<string>& rownames, const vector<string
 Rcpp::List allocateDataFrame(size_t nrows, const vector<string>& colnames, const vector<RblpapiT>& coltypes) {
 
   if(colnames.size() != coltypes.size()) {
-    throw std::logic_error("colnames size inconsistent with column types size.");
+    Rcpp::stop("colnames size inconsistent with column types size.");
   }
 
   Rcpp::List ans(colnames.size());
@@ -447,3 +448,5 @@ Rcpp::List allocateDataFrame(size_t nrows, const vector<string>& colnames, const
   }
   return ans;
 }
+
+#endif

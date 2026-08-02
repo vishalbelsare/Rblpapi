@@ -1,8 +1,7 @@
-// -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 //
 //  bsrch.cpp -- "Bloomberg SRCH" query function for the BLP API
 //
-//  Copyright (C) 2015  Whit Armstrong and Dirk Eddelbuettel and John Laing
+//  Copyright (C) 2015 - 2025  Whit Armstrong and Dirk Eddelbuettel and John Laing
 //
 //  This file is part of Rblpapi
 //
@@ -19,6 +18,7 @@
 //  You should have received a copy of the GNU General Public License
 //  along with Rblpapi.  If not, see <http://www.gnu.org/licenses/>.
 
+#if defined(HaveBlp)
 #include <vector>
 #include <string>
 #include <blpapi_session.h>
@@ -27,18 +27,13 @@
 #include <blpapi_event.h>
 #include <blpapi_message.h>
 #include <blpapi_element.h>
-#include <Rcpp.h>
 #include <blpapi_utils.h>
-
-
 #include <iostream>
 #include <stdlib.h>
 #include <string.h>
 #include <fstream>
 #include <array>
 #include <iterator>
-
-
 #include <sstream>
 using namespace std;
 using namespace Rcpp;
@@ -50,27 +45,28 @@ using BloombergLP::blpapi::Event;
 using BloombergLP::blpapi::Element;
 using BloombergLP::blpapi::Message;
 using BloombergLP::blpapi::MessageIterator;
+using BloombergLP::blpapi::Name;
 
 Rcpp::DataFrame processBsrchResponse(Event event, const bool verbose) {
 
     MessageIterator msgIter(event); 			// create message iterator
-    if (!msgIter.next()) throw std::logic_error("Not a valid MessageIterator.");
+    if (!msgIter.next()) Rcpp::stop("Not a valid MessageIterator.");
 
     Message msg = msgIter.message(); 			// get message
     if (verbose) msg.print(Rcpp::Rcout);
 
     Element response = msg.asElement(); 		// view as element
     if (std::strncmp(response.name().string(), "GridResponse", std::strlen("GridResponse")) != 0)
-        throw std::logic_error("Not a valid GridResponse.");
+        Rcpp::stop("Not a valid GridResponse.");
 
     // exrsvc provides a grid in the form of DataRecords
     // Extract the dimensions and key attributes before processing
-    Element dataRecords = msg.getElement("DataRecords");
+    Element dataRecords = msg.getElement(Name{"DataRecords"});
 
-    int numRows = msg.getElementAsInt64("NumOfRecords");
+    int numRows = msg.getElementAsInt64(Name{"NumOfRecords"});
     if (verbose) Rcpp::Rcout << numRows << " records returned" << std::endl;
 
-    Element columnTitles = msg.getElement("ColumnTitles");
+    Element columnTitles = msg.getElement(Name{"ColumnTitles"});
     int numCols = columnTitles.numValues();
     if (verbose) Rcpp::Rcout << "Returned columns:" << std::endl;
     if (verbose) columnTitles.print(Rcpp::Rcout);
@@ -94,10 +90,10 @@ Rcpp::DataFrame processBsrchResponse(Event event, const bool verbose) {
             // DataFieldArray
                 // DataField --> value
     // TODO - this step could made simpler for exrsvc queries as they always
-    // return values as a Choice 
+    // return values as a Choice
     for (int i = 0; i < min(numRows, 25); i++) { 		                 // look at up to 25 rows to infer types
         Element dataRecord = dataRecords.getValueAsElement(i); 	         // pick i-th element to infer DataRecord type
-        Element dataFields = dataRecord.getElement("DataFields");        // get data payload of first element
+        Element dataFields = dataRecord.getElement(Name{"DataFields"});  // get data payload of first element
 
         for (int j=0; j< numCols; j++) { 			                     // loop over first data set, and infer types
             if (!chk(j)) {                                               // column has not been set yet
@@ -139,7 +135,7 @@ Rcpp::DataFrame processBsrchResponse(Event event, const bool verbose) {
     for (int i = 0; i < numRows; i++) {
 
         Element dataRecord = dataRecords.getValueAsElement(i);
-        Element dataFields = dataRecord.getElement("DataFields");
+        Element dataFields = dataRecord.getElement(Name{"DataFields"});
         if (verbose) dataFields.print(Rcpp::Rcout);
 
         for (int j = 0; j < numCols; j++) {
@@ -171,14 +167,16 @@ Rcpp::DataFrame processBsrchResponse(Event event, const bool verbose) {
     Rcpp::DataFrame df(lst);
     return df;
 }
-
+#else
+#include <Rcpp/Lightest>
+#endif
 
 // [[Rcpp::export]]
-DataFrame bsrch_Impl(SEXP con,
-                    std::string domain,
-                    std::string limit,
-                    bool verbose=false) {
-
+Rcpp::DataFrame bsrch_Impl(SEXP con,
+                           std::string domain,
+                           std::string limit,
+                           bool verbose=false) {
+#if defined(HaveBlp)
     Session* session = reinterpret_cast<Session*>(checkExternalPointer(con, "blpapi::Session*"));
 
     const std::string exrsrv = "//blp/exrsvc";
@@ -189,7 +187,7 @@ DataFrame bsrch_Impl(SEXP con,
     Service exrService = session->getService(exrsrv.c_str());
     Request request = exrService.createRequest("ExcelGetGridRequest");
 
-    request.getElement("Domain").setValue(domain.c_str());
+    request.getElement(Name{"Domain"}).setValue(domain.c_str());
 
     // TODO - implement limit and other overrides
 
@@ -224,5 +222,8 @@ DataFrame bsrch_Impl(SEXP con,
     }
 
     return ans;
+#else // ie no Blp
+    return Rcpp::DataFrame();
+#endif
 
 }

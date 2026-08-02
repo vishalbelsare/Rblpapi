@@ -1,9 +1,8 @@
-// -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 //
 //  bds.cpp -- "Bloomberg Data Set" query function for the BLP API
 //
 //  Copyright (C) 2013         Whit Armstrong
-//  Copyright (C) 2015 - 2017  Whit Armstrong and Dirk Eddelbuettel
+//  Copyright (C) 2015 - 2025  Whit Armstrong and Dirk Eddelbuettel
 //
 //  This file is part of Rblpapi
 //
@@ -20,6 +19,7 @@
 //  You should have received a copy of the GNU General Public License
 //  along with Rblpapi.  If not, see <http://www.gnu.org/licenses/>.
 
+#if defined(HaveBlp)
 #include <vector>
 #include <string>
 #include <blpapi_session.h>
@@ -28,7 +28,6 @@
 #include <blpapi_event.h>
 #include <blpapi_message.h>
 #include <blpapi_element.h>
-#include <Rcpp.h>
 #include <blpapi_utils.h>
 
 using BloombergLP::blpapi::Session;
@@ -38,6 +37,7 @@ using BloombergLP::blpapi::Event;
 using BloombergLP::blpapi::Element;
 using BloombergLP::blpapi::Message;
 using BloombergLP::blpapi::MessageIterator;
+using BloombergLP::blpapi::Name;
 
 void populateDfRowBDS(Rcpp::RObject ans, R_len_t row_index, Element& e) {
     if (e.isNull()) { return; }
@@ -60,7 +60,7 @@ void populateDfRowBDS(Rcpp::RObject ans, R_len_t row_index, Element& e) {
             Rcpp::Rcerr << "BLPAPI_DATATYPE_INT64 exceeds max int value on this system (assigning std::numeric_limits<int>::max())." << std::endl;
             INTEGER(ans)[row_index] = std::numeric_limits<int>::max();
         } else {
-            INTEGER(ans)[row_index] = static_cast<int>(e.getValueAsInt64()); 
+            INTEGER(ans)[row_index] = static_cast<int>(e.getValueAsInt64());
         }
         break;
     case BLPAPI_DATATYPE_FLOAT32:
@@ -99,7 +99,7 @@ void populateDfRowBDS(Rcpp::RObject ans, R_len_t row_index, Element& e) {
     case BLPAPI_DATATYPE_CORRELATION_ID:
         INTEGER(ans)[row_index] = e.getValueAsInt32(); break;
     default:
-        throw std::logic_error("Unsupported datatype outside of api blpapi_DataType_t scope.");
+        Rcpp::stop("Unsupported datatype outside of api blpapi_DataType_t scope.");
     }
 }
 
@@ -218,40 +218,45 @@ Rcpp::List bulkArrayToDf(Element& fieldData) {
 Rcpp::List BulkDataResponseToDF(Event& event, std::string& requested_field, std::string response_type, bool verbose) {
     MessageIterator msgIter(event);
     if(!msgIter.next()) {
-        throw std::logic_error("Not a valid MessageIterator.");
+        Rcpp::stop("Not a valid MessageIterator.");
     }
 
     Message msg = msgIter.message();
     Element response = msg.asElement();
     if (verbose) response.print(Rcpp::Rcout);
     if(std::strcmp(response.name().string(),response_type.c_str())) {
-        throw std::logic_error("Not a valid " + response_type + ".");
+        Rcpp::stop("Not a valid " + response_type + ".");
     }
-    Element securityData = response.getElement("securityData");
+    Element securityData = response.getElement(Name{"securityData"});
 
     Rcpp::List ans(securityData.numValues());
     std::vector<std::string> ans_names(securityData.numValues());
 
     for(size_t i = 0; i < securityData.numValues(); ++i) {
         Element this_security = securityData.getValueAsElement(i);
-        ans_names[i] = this_security.getElementAsString("security");
-        Element fieldData = this_security.getElement("fieldData");
-        if(!fieldData.hasElement(requested_field.c_str())) {
+        ans_names[i] = this_security.getElementAsString(Name{"security"});
+        Element fieldData = this_security.getElement(Name{"fieldData"});
+        if(!fieldData.hasElement(Name{requested_field.c_str()})) {
             ans[i] = R_NilValue;
         } else {
-            Element e = fieldData.getElement(requested_field.c_str());
+            Element e = fieldData.getElement(Name{requested_field.c_str()});
             ans[i] = bulkArrayToDf(e);
         }
     }
     ans.attr("names") = ans_names;
     return ans;
 }
+#else
+#include <Rcpp/Lightest>
+#endif
 
 // only allow one field for bds in contrast to bdp
 // [[Rcpp::export]]
 Rcpp::List bds_Impl(SEXP con_, std::vector<std::string> securities,
                     std::string field, SEXP options_, SEXP overrides_,
                     bool verbose, SEXP identity_) {
+
+#if defined(HaveBlp)
 
     Session* session =
         reinterpret_cast<Session*>(checkExternalPointer(con_, "blpapi::Session*"));
@@ -266,9 +271,9 @@ Rcpp::List bds_Impl(SEXP con_, std::vector<std::string> securities,
     Service refDataService = session->getService(rdsrv.c_str());
     Request request = refDataService.createRequest("ReferenceDataRequest");
     for (size_t i = 0; i < securities.size(); i++) {
-        request.getElement("securities").appendValue(securities[i].c_str());
+        request.getElement(Name{"securities"}).appendValue(securities[i].c_str());
     }
-    request.getElement("fields").appendValue(field.c_str());
+    request.getElement(Name{"fields"}).appendValue(field.c_str());
     appendOptionsToRequest(request,options_);
     appendOverridesToRequest(request,overrides_);
 
@@ -290,13 +295,18 @@ Rcpp::List bds_Impl(SEXP con_, std::vector<std::string> securities,
         }
         if (event.eventType() == Event::RESPONSE) { break; }
     }
-    return R_NilValue;
+    return Rcpp::List();
+#else // ie no Blp
+    return Rcpp::List();
+#endif
 }
 
 // [[Rcpp::export]]
 Rcpp::List getPortfolio_Impl(SEXP con_, std::vector<std::string> securities,
-                    std::string field, SEXP options_, SEXP overrides_,
-                    bool verbose, SEXP identity_) {
+                             std::string field, SEXP options_, SEXP overrides_,
+                             bool verbose, SEXP identity_) {
+
+#if defined(HaveBlp)
 
     Session* session =
         reinterpret_cast<Session*>(checkExternalPointer(con_, "blpapi::Session*"));
@@ -311,9 +321,9 @@ Rcpp::List getPortfolio_Impl(SEXP con_, std::vector<std::string> securities,
     Service refDataService = session->getService(rdsrv.c_str());
     Request request = refDataService.createRequest("PortfolioDataRequest");
     for (size_t i = 0; i < securities.size(); i++) {
-        request.getElement("securities").appendValue(securities[i].c_str());
+        request.getElement(Name{"securities"}).appendValue(securities[i].c_str());
     }
-    request.getElement("fields").appendValue(field.c_str());
+    request.getElement(Name{"fields"}).appendValue(field.c_str());
     appendOptionsToRequest(request,options_);
     appendOverridesToRequest(request,overrides_);
 
@@ -335,5 +345,8 @@ Rcpp::List getPortfolio_Impl(SEXP con_, std::vector<std::string> securities,
         }
         if (event.eventType() == Event::RESPONSE) { break; }
     }
-    return R_NilValue;
+    return Rcpp::List();
+#else // ie no Blp
+    return Rcpp::List();
+#endif
 }
